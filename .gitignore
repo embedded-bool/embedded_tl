@@ -33,5 +33,5 @@
 
 #CMake and CLion directories
 .idea/
-cmake*/
+cmake-*/
 CMakeUserPresets.json

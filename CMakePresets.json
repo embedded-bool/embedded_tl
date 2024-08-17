@@ -1,0 +1,58 @@
+{
+  "version": 4,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-config",
+      "generator": "Ninja",
+      "hidden": true
+    },
+    {
+      "name": "arm-toolchain-gcc",
+      "hidden": true,
+      "inherits": "ninja-config",
+      "toolchainFile": "${sourceDir}/tools/cmake/arm_build_toolchain.cmake",
+      "cacheVariables": {
+        "SYSTEM_BUILD_TYPE":"Build"
+      }
+    },
+    {
+      "name": "catch2",
+      "hidden": true,
+      "inherits": "ninja-config",
+      "toolchainFile": "${sourceDir}/tools/cmake/gcc_unit_test_toolchain.cmake",
+      "cacheVariables": {
+        "CATCH2_GITHUB" : "https://github.com/catchorg/Catch2.git",
+        "CATCH2_TAG" : "v3.4.0",
+        "SYSTEM_BUILD_TYPE": "UnitTest"
+      }
+    },
+    {
+      "name": "unit-test-config",
+      "displayName": "Embedded Template Library - Unit Test",
+      "description": "Conducts unit tests of library template code.",
+      "inherits": "catch2",
+      "binaryDir": "${sourceDir}/cmake-unit-test",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE" : "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "unit-test-build",
+      "configurePreset": "unit-test-config",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unit-test",
+      "configurePreset": "unit-test-config"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+# https://youtu.be/3ccQ_0YeZX4?si=STkrjvMGv0I_-ky0
+name: unit_tests.yml
+
+on: [push]
+
+env:
+  DOCKER_NAME: embtl-unit-test
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Build and Run unit tests for embedded template library
+    steps:
+      # github.com/actions/checkout
+      - name: Check out this repository.
+        uses: actions/checkout@v4
+
+      - name: Build Docker image (run tests)
+        run: docker build -t ${DOCKER_NAME}-image --file ./tools/docker/Dockerfile .
+

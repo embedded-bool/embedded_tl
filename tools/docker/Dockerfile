@@ -23,9 +23,6 @@ COPY ./ $DEV_DIR
 COPY ./tools/docker/linux/arm_gnu_toolchain.sh /tmp_scripts/arm_gnu_toolchain.sh
 COPY ./tools/docker/linux/cmake_install.sh /tmp_scripts/cmake_install.sh
 
-# remove build directories
-RUN rm -r $DEV_DIR/cmake-*
-
 # Preinstall before running script; curl, xz-utils, dos2unix, and git.
 RUN apt update && apt-get install -y curl xz-utils dos2unix git
 

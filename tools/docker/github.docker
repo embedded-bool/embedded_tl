@@ -42,7 +42,9 @@ COPY . $DEV_DIR
 WORKDIR $DEV_DIR
 # Use cmake to configure and build project. Use ctest to run unit test.
 RUN cmake --preset unit-test-config
+RUN cmake --preset library-config
 RUN cmake --build --preset unit-test-build
+RUN cmake --build --preset library-build
 RUN ctest --preset unit-test
 
 ENTRYPOINT ["/bin/bash"]

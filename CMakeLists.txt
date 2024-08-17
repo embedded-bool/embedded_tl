@@ -16,4 +16,7 @@ if (${SYSTEM_BUILD_TYPE} STREQUAL "UnitTest")
 endif ()
 
 add_subdirectory(embedded)
-add_subdirectory(tests)
+
+if (${SYSTEM_BUILD_TYPE} STREQUAL "UnitTest")
+    add_subdirectory(tests)
+endif ()

@@ -14,7 +14,6 @@
     {
       "name": "arm-toolchain-gcc",
       "hidden": true,
-      "inherits": "ninja-config",
       "toolchainFile": "${sourceDir}/tools/cmake/arm_build_toolchain.cmake",
       "cacheVariables": {
         "SYSTEM_BUILD_TYPE":"Build"
@@ -23,7 +22,6 @@
     {
       "name": "catch2",
       "hidden": true,
-      "inherits": "ninja-config",
       "toolchainFile": "${sourceDir}/tools/cmake/gcc_unit_test_toolchain.cmake",
       "cacheVariables": {
         "CATCH2_GITHUB" : "https://github.com/catchorg/Catch2.git",
@@ -32,10 +30,16 @@
       }
     },
     {
+      "name": "library-config",
+      "description": "Configures library to be built.",
+      "inherits": ["ninja-config", "arm-toolchain-gcc"],
+      "binaryDir": "${sourceDir}/cmake-embtl-lib"
+    },
+    {
       "name": "unit-test-config",
       "displayName": "Embedded Template Library - Unit Test",
       "description": "Conducts unit tests of library template code.",
-      "inherits": "catch2",
+      "inherits": ["ninja-config", "catch2"],
       "binaryDir": "${sourceDir}/cmake-unit-test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE" : "Debug"
@@ -46,6 +50,11 @@
     {
       "name": "unit-test-build",
       "configurePreset": "unit-test-config",
+      "configuration": "Debug"
+    },
+    {
+      "name": "library-build",
+      "configurePreset": "library-config",
       "configuration": "Debug"
     }
   ],

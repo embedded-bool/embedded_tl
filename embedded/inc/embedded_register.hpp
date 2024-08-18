@@ -29,29 +29,34 @@ namespace embtl {
             Base Mask = std::numeric_limits<Base>::max(),
             Base Reset = std::numeric_limits<Base>::min(),
             typename SideEffect = void>
-    struct basic_register_t final {
+    struct basic_hardware_register final {
       public:
         using value_type = Base;
 
         // Compile time checks
-        static consteval bool is_read_only() noexcept { return mmio_register_policy_read_only<Policy>; }
-        static consteval bool is_write_only() noexcept { return mmio_register_policy_write_only<Policy>; }
-        static consteval bool is_read_write() noexcept { return mmio_register_policy_read_write<Policy>; }
+        static consteval bool has_read_access() noexcept { return mmio_register_policy_read_only<Policy>; }
+        static consteval bool has_write_access() noexcept { return mmio_register_policy_write_only<Policy>; }
+        static consteval bool has_read_write_access() noexcept { return mmio_register_policy_read_write<Policy>; }
+        static consteval bool is_reserved() noexcept {
+          return !(mmio_register_policy_read_write<Policy> ||
+                  mmio_register_policy_read_only<Policy> ||
+                  mmio_register_policy_write_only<Policy>);
+        }
         static consteval bool has_side_effect() noexcept { return mmio_side_effect_write_only<SideEffect> || mmio_side_effect_read_only<SideEffect>; }
 
-        basic_register_t() noexcept = default;
+        basic_hardware_register() noexcept = default;
 
-        explicit basic_register_t(const value_type value) noexcept
+        explicit basic_hardware_register(const value_type value) noexcept
         requires mmio_register_policy_write_only<Policy> : reg(value){ }
 
-        basic_register_t(const basic_register_t&) noexcept = default;
-        basic_register_t& operator=(const basic_register_t&) noexcept = default;
-        basic_register_t(basic_register_t&&) noexcept = delete;
-        basic_register_t& operator=(basic_register_t&&) noexcept = delete;
+        basic_hardware_register(const basic_hardware_register&) noexcept = default;
+        basic_hardware_register& operator=(const basic_hardware_register&) noexcept = default;
+        basic_hardware_register(basic_hardware_register&&) noexcept = delete;
+        basic_hardware_register& operator=(basic_hardware_register&&) noexcept = delete;
 
 #ifdef UNIT_TEST
-        static auto get_register(const basic_register_t& hw_reg) noexcept { return hw_reg.reg; }
-        static auto set_register(basic_register_t& hw_reg, const value_type val) noexcept { hw_reg.reg = val & Mask; }
+        static auto get_register(const basic_hardware_register& hw_reg) noexcept { return hw_reg.reg; }
+        static auto set_register(basic_hardware_register& hw_reg, const value_type val) noexcept { hw_reg.reg = val & Mask; }
 #endif
         /**
          * @brief Reset register method.
@@ -148,7 +153,7 @@ namespace embtl {
          * @return Reference to this class.
          * @note Only available if register has write-only or read/write policy.
          */
-        basic_register_t& operator =(const value_type rhs) noexcept {
+        basic_hardware_register& operator =(const value_type rhs) noexcept {
           this->write(rhs);
           return *this;
         }
@@ -158,7 +163,7 @@ namespace embtl {
          * @return Reference to this class.
          * @note Only available if register has read/write policy.
          */
-        basic_register_t& operator &=(const value_type rhs) noexcept {
+        basic_hardware_register& operator &=(const value_type rhs) noexcept {
           auto reg_v = this->read();
           reg_v &= rhs;
           this->write(reg_v);
@@ -170,7 +175,7 @@ namespace embtl {
          * @return Reference to this class.
          * @note Only available if register has read/write policy.
          */
-        basic_register_t& operator |=(const value_type rhs) noexcept {
+        basic_hardware_register& operator |=(const value_type rhs) noexcept {
           auto reg_v = this->read();
           reg_v |= rhs;
           this->write(reg_v);
@@ -182,7 +187,7 @@ namespace embtl {
          * @return Reference to this class.
          * @note Only available if register has read/write policy.
          */
-        basic_register_t& operator ^=(const value_type rhs) noexcept {
+        basic_hardware_register& operator ^=(const value_type rhs) noexcept {
           auto reg_v = this->read();
           reg_v ^= rhs;
           this->write(reg_v);

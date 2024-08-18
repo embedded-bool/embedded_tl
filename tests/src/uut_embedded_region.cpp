@@ -15,10 +15,10 @@
 
 struct RegisterTestMap {
   public:
-    embtl::basic_register_t<embtl::policy::basic_reg_read_write<embtl::arch_type>> CTRL;
-    embtl::basic_register_t<embtl::policy::basic_reg_read_only<embtl::arch_type>>  STAT;
-    embtl::basic_register_t<embtl::policy::basic_reg_write_only<embtl::arch_type>> TX;
-    embtl::basic_register_t<embtl::policy::basic_reg_read_only<embtl::arch_type>>  RX;
+    embtl::basic_hardware_register<embtl::policy::basic_reg_read_write<embtl::arch_type>> CTRL;
+    embtl::basic_hardware_register<embtl::policy::basic_reg_read_only<embtl::arch_type>>  STAT;
+    embtl::basic_hardware_register<embtl::policy::basic_reg_write_only<embtl::arch_type>> TX;
+    embtl::basic_hardware_register<embtl::policy::basic_reg_read_only<embtl::arch_type>>  RX;
 };
 
 struct TestAllocator {

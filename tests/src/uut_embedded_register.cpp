@@ -22,7 +22,7 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
                        (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
                        (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void)
 ){
-  using reg_t = embtl::basic_register_t<Policy, BaseType, Mask, Reset>;
+  using reg_t = embtl::basic_hardware_register<Policy, BaseType, Mask, Reset>;
 
   SECTION("Compile Time Tests"){
     if constexpr (std::is_same_v<SideEffect, void>){
@@ -30,21 +30,21 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
     }
     // Read-only
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_read_only<BaseType>>){
-      STATIC_REQUIRE(reg_t::is_read_only());
-      STATIC_REQUIRE_FALSE(reg_t::is_write_only());
-      STATIC_REQUIRE_FALSE(reg_t::is_read_write());
+      STATIC_REQUIRE(reg_t::has_read_access());
+      STATIC_REQUIRE_FALSE(reg_t::has_write_access());
+      STATIC_REQUIRE_FALSE(reg_t::has_read_write_access());
     }
     // Write-only check
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_write_only<BaseType, Mask>>){
-      STATIC_REQUIRE_FALSE(reg_t::is_read_only());
-      STATIC_REQUIRE(reg_t::is_write_only());
-      STATIC_REQUIRE_FALSE(reg_t::is_read_write());
+      STATIC_REQUIRE_FALSE(reg_t::has_read_access());
+      STATIC_REQUIRE(reg_t::has_write_access());
+      STATIC_REQUIRE_FALSE(reg_t::has_read_write_access());
     }
     // Read/Write check
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_read_write<BaseType, Mask>>){
-      STATIC_REQUIRE(reg_t::is_read_only());
-      STATIC_REQUIRE(reg_t::is_write_only());
-      STATIC_REQUIRE(reg_t::is_read_write());
+      STATIC_REQUIRE(reg_t::has_read_access());
+      STATIC_REQUIRE(reg_t::has_write_access());
+      STATIC_REQUIRE(reg_t::has_read_write_access());
     }
   }
   SECTION("Methods"){

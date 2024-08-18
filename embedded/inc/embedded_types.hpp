@@ -37,7 +37,7 @@ namespace embtl {
      * @brief Return status of device or method.
      */
     enum class STATUS : std::int32_t {
-        ERROR = std::numeric_limits<arch_type>::min(),
+        ERROR = std::numeric_limits<std::int32_t>::min(),
         NOT_IMPLEMENTED,
         NOT_AVAILABLE,
         BUFFER_OVERFLOW,

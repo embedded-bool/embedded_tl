@@ -82,7 +82,10 @@ namespace embtl {
     };
 
     template<typename T>
-    concept io_pin_bidir = io_pin_input<T> && io_pin_output<T>;
+    concept io_pin_bidir = io_pin_input<T> && io_pin_output<T> &&
+            requires (T a, IO_DIRECTION dir) {
+              { a.direction(dir) } -> std::same_as<void>;
+            };
 
 }
 

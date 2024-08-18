@@ -67,7 +67,6 @@ namespace embtl::policy {
         }
     };
     static_assert(mmio_register_policy_read_only<basic_reg_read_only<arch_type>>);
-
     /**
      * @brief Register policy : write-only template.
      * @tparam Base Register type.
@@ -87,7 +86,6 @@ namespace embtl::policy {
         }
     };
     static_assert(mmio_register_policy_write_only<basic_reg_write_only<arch_type>>);
-
     /**
      * @brief Register policy : read/write template
      * @tparam Base Register type.

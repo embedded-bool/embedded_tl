@@ -33,6 +33,7 @@ namespace embtl {
     using arch_type = std::uint32_t;
 #endif
 
+    using address_t = arch_type;
     /**
      * @brief Return status of device or method.
      */
@@ -48,8 +49,6 @@ namespace embtl {
         BUSY,
         INITIALIZED
     };
-
-    using address_t = arch_type;
 
     enum IO_STATE : arch_type {
         LOW = 0,

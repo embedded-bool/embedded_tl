@@ -1,10 +1,10 @@
 # <u>Embedded Types</u>
 [back](../README.md)
-## File: embedded_allocator.hpp
+### File: [embedded_allocator.hpp](../embedded/inc/embedded_allocator.hpp)
 
-## Namespace : embtl
+### Namespace : embtl
 
-### Types
+## Types
 
 - ___arch_type___ : Architecture type : defines the max bit width of the target architecture.
   - The architecture type can be defined use the following defines 

@@ -22,6 +22,7 @@ if (${SYSTEM_BUILD_TYPE} STREQUAL "Build")
 
     message(DEBUG "Header files : ${EMBTL_HEADER_FILES}")
 
-    add_library(${EMBTL_LIB_NAME} INTERFACE ${EMBTL_HEADER_FILES})
+    add_library(${EMBTL_LIB_NAME} INTERFACE)
+    target_include_directories(${EMBTL_LIB_NAME} INTERFACE inc)
 
 endif ()

@@ -61,10 +61,27 @@ namespace embtl {
      * @tparam T Type to be checked.
      */
     template<typename T>
-    concept mmio_allocator = requires (std::size_t sz, void* obj) {
+    concept mmio_allocator = requires (std::size_t sz /*, void* obj */) {
       { T::allocate(sz) } -> std::same_as<void*>;
-      { T::deallocate(obj) } -> std::same_as<void>;
     };
+
+    template<typename T>
+    concept mmio_single_allocator = requires (std::size_t sz) {
+      { T::allocate(sz) } -> std::same_as<void*>;
+    };
+
+    template<typename T>
+    concept mmio_multi_allocator_alpha = requires (std::size_t sz, char n) {
+      { T::allocate(sz,n) } -> std::same_as<void*>;
+    };
+
+    template<typename T>
+    concept mmio_multi_allocator_numeric = requires (std::size_t sz, std::size_t n) {
+      { T::allocate(sz,n) } -> std::same_as<void*>;
+    };
+
+    template<typename T>
+    concept mmio_multi_allocator_alpha_numeric = mmio_multi_allocator_alpha<T> || mmio_multi_allocator_numeric<T>;
 
     template<typename T>
     concept io_pin_input = requires (T a, IO_STATE state) {

@@ -25,7 +25,7 @@ namespace embtl {
         basic_driver(basic_driver&&) noexcept = delete;
         basic_driver& operator=(basic_driver&&) noexcept = delete;
 
-        [[nodiscard]] bool has_error() const noexcept{
+        [[nodiscard]] auto has_error() const noexcept -> bool{
           return reg_map == nullptr;
         }
 

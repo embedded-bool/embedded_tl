@@ -37,6 +37,7 @@ namespace embtl {
         static consteval bool has_read_access() noexcept { return mmio_register_policy_read_only<Policy>; }
         static consteval bool has_write_access() noexcept { return mmio_register_policy_write_only<Policy>; }
         static consteval bool has_read_write_access() noexcept { return mmio_register_policy_read_write<Policy>; }
+
         static consteval bool is_reserved() noexcept {
           return !(mmio_register_policy_read_write<Policy> ||
                   mmio_register_policy_read_only<Policy> ||

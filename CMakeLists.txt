@@ -21,13 +21,13 @@ if (${SYSTEM_BUILD_TYPE} STREQUAL "UnitTest")
     add_subdirectory(tests)
 endif ()
 
-add_custom_target(run_local_docker
+add_custom_target(docker_local_image
         COMMAND docker build -t embtl-local-image --file ./tools/docker/local.docker .
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "builds docker image from local.docker file."
 )
 
-add_custom_target(run_github_docker
+add_custom_target(docker_github_image
         COMMAND docker build -t embtl-github-image --file ./tools/docker/github.docker .
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMENT "builds image for github.docker file."

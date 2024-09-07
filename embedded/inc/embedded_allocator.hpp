@@ -159,8 +159,8 @@ namespace embtl {
      *
      * @details
      * This template class is used to simplify the process of setting up MMIO multiple device drivers. The two template parameters
-     * are used to set the index type and set the available valid devices for this device allocotor class. The IndexType
-     * parameter must be a char type or std::size_t type. The DeviceList variadic template parmeter must have at least 2
+     * are used to set the index type and set the available valid devices for this device allocator class. The IndexType
+     * parameter must be a char type or std::size_t type. The DeviceList variadic template parameter must have at least 2
      * items for the parameter to be valid. A compiler error is generated if either template parameters do not met these
      * requirements. Once this parameters are set the user can call the
      * basic_mmio_device_list_allocator::allocate(std::size_t, const ItemType) static method to get a pointer to the
@@ -184,8 +184,18 @@ namespace embtl {
     struct basic_mmio_device_list_allocator final {
       public:
 
-        static void* allocate(std::size_t, const std::size_t n) noexcept {
-          return basic_mmio_device_allocator<DeviceList...>(n);
+        static void* allocate([[maybe_unused]]std::size_t sz, const std::size_t n) noexcept {
+          if constexpr (host_allocation::value){
+            return std::malloc(sz);
+          } else {
+            return basic_mmio_device_allocator<DeviceList...>(n);
+          }
+        }
+
+        static void deallocate([[maybe_unused]]void* ptr) noexcept {
+          if constexpr (host_allocation::value){
+            std::free(ptr);
+          }
         }
     };
 
@@ -214,6 +224,10 @@ namespace embtl {
       public:
         static void* allocate(std::size_t) noexcept {
           return basic_mmio_device_allocator<Device>();
+        }
+
+        static void deallocate(void*) noexcept {
+
         }
     };
 }

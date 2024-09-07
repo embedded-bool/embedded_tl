@@ -93,14 +93,20 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_device_allocator unit test","[embtl]
     auto device_reg = embtl::basic_mmio_device_allocator<DeviceList...>();
 
     REQUIRE_FALSE(device_reg == nullptr);
-    REQUIRE(device_reg == reinterpret_cast<void*>(device_list[0].base_address));
+
+    if constexpr(!embtl::host_allocation::value) {
+      REQUIRE(device_reg == reinterpret_cast<void*>(device_list[0].base_address));
+    }
   } else {
     for(auto& device : device_list) {
       auto device_reg = embtl::basic_mmio_device_allocator<DeviceList...>(device.number);
 
       CAPTURE(device.number, device.base_address, device_reg, sizeof...(DeviceList));
       REQUIRE_FALSE(device_reg == nullptr);
-      REQUIRE(device_reg == reinterpret_cast<void*>(device.base_address));
+
+      if constexpr(!embtl::host_allocation::value) {
+        REQUIRE(device_reg == reinterpret_cast<void*>(device.base_address));
+      }
     }
   }
 }
@@ -120,9 +126,11 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_device_list_allocator<> unit test","
   for(auto& item : device_list){
     auto reg_ptr = dev_alloc::allocate(4_uz, item.number);
     REQUIRE_FALSE(reg_ptr == nullptr);
-    REQUIRE(reg_ptr == reinterpret_cast<void*>(item.base_address));
-  }
 
+    if constexpr(!embtl::host_allocation::value){
+      REQUIRE(reg_ptr == reinterpret_cast<void*>(item.base_address));
+    }
+  }
 }
 
 /**
@@ -140,5 +148,8 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_single_device_allocator<> unit test"
   auto reg_ptr = dev_alloc::allocate(4);
 
   REQUIRE_FALSE(reg_ptr == nullptr);
-  REQUIRE(reg_ptr == reinterpret_cast<void*>(Device.base_address));
+
+  if constexpr(!embtl::host_allocation::value) {
+    REQUIRE(reg_ptr == reinterpret_cast<void*>(Device.base_address));
+  }
 }

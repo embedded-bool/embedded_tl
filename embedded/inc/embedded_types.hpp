@@ -19,9 +19,9 @@
 namespace embtl {
 
 #ifdef UNIT_TEST
-    constexpr bool REGISTER_SIMULATION{true};
+  struct host_allocation : public std::true_type { };
 #else
-    constexpr bool REGISTER_SIMULATION { false };
+  struct host_allocation : public std::false_type { };
 #endif
 
 #if defined EMBEDDED_SYSTEM_8BIT

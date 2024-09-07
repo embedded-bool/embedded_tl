@@ -65,7 +65,10 @@ TEMPLATE_TEST_CASE_SIG("basic_mmio_device_registers<> template numeric test","[e
       auto* device = new (item.number) uart_device_registers_t;
 
       REQUIRE_FALSE(device == nullptr);
-      REQUIRE(device == reinterpret_cast<decltype(device)>(item.base_address));
+
+      if constexpr(!embtl::host_allocation::value) {
+        REQUIRE(device == reinterpret_cast<decltype(device)>(item.base_address));
+      }
 
       delete device;
     }

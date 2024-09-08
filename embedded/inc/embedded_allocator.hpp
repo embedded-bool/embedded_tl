@@ -222,12 +222,18 @@ namespace embtl {
     template<memory_mapped_device_info Device>
     struct basic_mmio_single_device_allocator final {
       public:
-        static void* allocate(std::size_t) noexcept {
-          return basic_mmio_device_allocator<Device>();
+        static void* allocate([[maybe_unused]]std::size_t sz) noexcept {
+          if constexpr (host_allocation::value){
+            return std::malloc(sz);
+          } else {
+            return basic_mmio_device_allocator<Device>();
+          }
         }
 
-        static void deallocate(void*) noexcept {
-
+        static void deallocate([[maybe_unused]]void* ptr) noexcept {
+          if constexpr (host_allocation::value){
+            std::free(ptr);
+          }
         }
     };
 }

@@ -55,7 +55,7 @@ TEMPLATE_TEST_CASE_SIG("basic_mmio_device_registers<> template numeric test","[e
                        ({1_uz,0x4000'0000},{2_uz, 0x4000'1000},{3_uz, 0x4000'2000},{4_uz, 0x4000'3000}),
                        ({'A', 0x4000'0000},{'B', 0x4100'0000}, {'C', 0x4000'0000})
 ){
-  using uart_reg_allocator_t = embtl::basic_mmio_device_list_allocator<DeviceList...>;
+  using uart_reg_allocator_t = embtl::basic_mmio_device_list_allocator<std::false_type, DeviceList...>;
   using uart_device_registers_t = embtl::basic_mmio_device_registers<uart_registers_t, uart_reg_allocator_t>;
 
   SECTION("Allocation Test"){
@@ -66,9 +66,7 @@ TEMPLATE_TEST_CASE_SIG("basic_mmio_device_registers<> template numeric test","[e
 
       REQUIRE_FALSE(device == nullptr);
 
-      if constexpr(!embtl::host_allocation::value) {
-        REQUIRE(device == reinterpret_cast<decltype(device)>(item.base_address));
-      }
+      REQUIRE(device == reinterpret_cast<decltype(device)>(item.base_address));
 
       delete device;
     }

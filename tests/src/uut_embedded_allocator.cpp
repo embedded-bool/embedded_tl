@@ -120,7 +120,7 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_device_list_allocator<> unit test","
                        ({1_uz,0x6000'0000},{2_uz,0x6000'5000},{3_uz,0x6000'7000},{4_uz,0x6000'9000},{5_uz,0x4000'A000}),
                        ({1_uz,0x7000'1000},{2_uz,0x7000'2000},{3_uz,0x7000'3000})
 ){
-  using dev_alloc = embtl::basic_mmio_device_list_allocator<DeviceList...>;
+  using dev_alloc = embtl::basic_mmio_device_list_allocator<embtl::host_allocation, DeviceList...>;
   constexpr std::array<embtl::memory_mapped_device_info, sizeof...(DeviceList)> device_list { DeviceList... };
 
   for(auto& item : device_list){
@@ -129,6 +129,8 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_device_list_allocator<> unit test","
 
     if constexpr(!embtl::host_allocation::value){
       REQUIRE(reg_ptr == reinterpret_cast<void*>(item.base_address));
+    } else {
+      REQUIRE_FALSE(reg_ptr == reinterpret_cast<void*>(item.base_address));
     }
   }
 }
@@ -143,13 +145,20 @@ TEMPLATE_TEST_CASE_SIG("template basic_mmio_single_device_allocator<> unit test"
                        ({0x6000'0000}),
                        ({0x7000'1000})
 ){
-  using dev_alloc = embtl::basic_mmio_single_device_allocator<Device>;
 
-  auto reg_ptr = dev_alloc::allocate(4);
+  SECTION("Hardware Allocation"){
+    using dev_alloc = embtl::basic_mmio_single_device_allocator<Device, std::false_type>;
+    auto reg_ptr = dev_alloc::allocate(4);
+    REQUIRE_FALSE(reg_ptr == nullptr);
 
-  REQUIRE_FALSE(reg_ptr == nullptr);
-
-  if constexpr(!embtl::host_allocation::value) {
     REQUIRE(reg_ptr == reinterpret_cast<void*>(Device.base_address));
   }
+  SECTION("Host Allocation"){
+    using dev_alloc = embtl::basic_mmio_single_device_allocator<Device, std::true_type>;
+    auto reg_ptr = dev_alloc::allocate(4);
+    REQUIRE_FALSE(reg_ptr == nullptr);
+
+    REQUIRE_FALSE(reg_ptr == reinterpret_cast<void*>(Device.base_address));
+  }
+
 }

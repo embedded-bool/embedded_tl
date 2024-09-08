@@ -18,6 +18,13 @@
 
 namespace embtl {
 
+template<typename T>
+concept bool_integral_constant = requires (T a){
+  { T::value };
+  { a.operator()() } -> std::same_as<bool>;
+  { a.operator bool() } -> std::same_as<bool>;
+};
+
 #ifdef UNIT_TEST
   struct host_allocation : public std::true_type { };
 #else

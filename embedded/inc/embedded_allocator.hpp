@@ -127,6 +127,7 @@ namespace embtl {
       }
     }
 
+
     /**
      * @brief Memory Mapped IO (MMIO) Hardware Allocator class (multiple devices)
      * @tparam Number Device Number
@@ -179,13 +180,12 @@ namespace embtl {
      *
      * @note Unit Tested.
      */
-    template<memory_mapped_device_info ... DeviceList>
+    template<bool_integral_constant HostAlloc, memory_mapped_device_info ... DeviceList>
     requires (sizeof...(DeviceList) > 1)
     struct basic_mmio_device_list_allocator final {
       public:
-
         static void* allocate([[maybe_unused]]std::size_t sz, const std::size_t n) noexcept {
-          if constexpr (host_allocation::value){
+          if constexpr (HostAlloc::value){
             return std::malloc(sz);
           } else {
             return basic_mmio_device_allocator<DeviceList...>(n);
@@ -193,7 +193,7 @@ namespace embtl {
         }
 
         static void deallocate([[maybe_unused]]void* ptr) noexcept {
-          if constexpr (host_allocation::value){
+          if constexpr (HostAlloc::value){
             std::free(ptr);
           }
         }
@@ -219,11 +219,11 @@ namespace embtl {
      *
      * @note Unit Tested.
      */
-    template<memory_mapped_device_info Device>
+    template<memory_mapped_device_info Device, bool_integral_constant HostAlloc = std::false_type>
     struct basic_mmio_single_device_allocator final {
       public:
         static void* allocate([[maybe_unused]]std::size_t sz) noexcept {
-          if constexpr (host_allocation::value){
+          if constexpr (HostAlloc::value){
             return std::malloc(sz);
           } else {
             return basic_mmio_device_allocator<Device>();
@@ -231,7 +231,7 @@ namespace embtl {
         }
 
         static void deallocate([[maybe_unused]]void* ptr) noexcept {
-          if constexpr (host_allocation::value){
+          if constexpr (HostAlloc::value){
             std::free(ptr);
           }
         }

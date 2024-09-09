@@ -40,13 +40,14 @@ namespace embtl {
             };
 
     template<typename T>
-    concept mmio_side_effect_read_only = requires (volatile arch_type& reg, std::size_t pos, std::size_t size, bool masked) {
+    concept mmio_side_effect_read_only = requires (volatile arch_type& reg) {
       { T::read(reg) } -> std::same_as<void>;
     };
 
     template<typename T>
-    concept mmio_side_effect_write_only = requires (volatile arch_type& reg, arch_type& value) {
-      { T::write(reg, value) } -> std::same_as<void>;
+    concept mmio_side_effect_write_only = requires (volatile arch_type& reg, const arch_type& lvalue, arch_type&& rvalue) {
+      { T::write(reg, lvalue) } -> std::same_as<void>;
+      { T::write(reg, rvalue) } -> std::same_as<void>;
     };
 
     template<typename T>

@@ -43,7 +43,9 @@ namespace embtl {
                   mmio_register_policy_read_only<Policy> ||
                   mmio_register_policy_write_only<Policy>);
         }
-        static consteval bool has_side_effect() noexcept { return mmio_side_effect_write_only<SideEffect> || mmio_side_effect_read_only<SideEffect>; }
+        static consteval bool has_side_effect() noexcept {
+          return mmio_side_effect_write_only<SideEffect> ||
+                 mmio_side_effect_read_only<SideEffect>; }
 
         basic_hardware_register() noexcept = default;
 
@@ -71,22 +73,27 @@ namespace embtl {
           }
         }
         /**
-         * @brief Read register method.
+         * @brief Read register method (const).
          * @return Value of register.
          * @note Only available if register has read-only or read/write policy.
          */
         [[nodiscard]] value_type read() const noexcept
         requires mmio_register_policy_read_only<Policy> {
+          return Policy::read(reg);;
+        }
+        /**
+         * @brief Read register method with side effect.
+         * @return Value of register.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        [[nodiscard]] value_type read() noexcept
+        requires (mmio_register_policy_read_only<Policy> && mmio_side_effect_read_only<SideEffect>) {
           auto val = Policy::read(reg);
-          // Compile Side effect if valid type.
-          if constexpr (mmio_side_effect_read_only<SideEffect>){
-            SideEffect::read(reg);
-          }
-
+          SideEffect::read(reg);
           return val;
         }
         /**
-         * @brief Get bit field method.
+         * @brief Get bit field method (const).
          * @param pos [in] Field start bit position.
          * @param size [in] Field size in bits.
          * @param shifted [in] true := only get field value; false := get value of the masked field.
@@ -101,6 +108,20 @@ namespace embtl {
             SideEffect::read(reg);
           }
 
+          return val;
+        }
+        /**
+         * @brief Get bit field method with side effect.
+         * @param pos [in] Field start bit position.
+         * @param size [in] Field size in bits.
+         * @param shifted [in] true := only get field value; false := get value of the masked field.
+         * @return Field value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        [[nodiscard]] value_type get_field(std::size_t pos, std::size_t size = 1, bool shifted = true) noexcept
+        requires (mmio_register_policy_read_only<Policy> && mmio_side_effect_read_only<SideEffect>) {
+          auto val =  Policy::get_field(reg, pos, size, shifted);
+          SideEffect::read(reg);
           return val;
         }
         /**
@@ -207,6 +228,15 @@ namespace embtl {
           return this->read() & rhs;
         }
         /**
+         * @brief AND bit-wise operator with side effect.
+         * @param rhs [in] Convertable register types value
+         * @return Result of operation.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        value_type operator & (const value_type rhs) noexcept {
+          return this->read() & rhs;
+        }
+        /**
          * @brief OR bit-wise operator.
          * @param rhs [in] Convertable register types value.
          * @return Result of operation.
@@ -216,12 +246,30 @@ namespace embtl {
           return this->read() | rhs;
         }
         /**
+         * @brief OR bit-wise operator with side effect.
+         * @param rhs [in] Convertable register types value.
+         * @return Result of operation.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        value_type operator | (const value_type rhs) noexcept {
+          return this->read() | rhs;
+        }
+        /**
          * @brief XOR bit-wise operator.
          * @param rhs [in] Convertable register types value.
          * @return Result of Operation.
          * @note Only available if register has read-only or read/write policy.
          */
         value_type operator ^ (const value_type rhs) const noexcept {
+          return this->read() ^ rhs;
+        }
+        /**
+         * @brief XOR bit-wise operator with side effect
+         * @param rhs [in] Convertable register types value.
+         * @return Result of Operation.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        value_type operator ^ (const value_type rhs) noexcept {
           return this->read() ^ rhs;
         }
 
@@ -237,12 +285,30 @@ namespace embtl {
           return this->read() == rhs;
         }
         /**
+         * @brief Equality operator with side effect.
+         * @param rhs [in] Convertable register types value to compared.
+         * @return true := rhs is equal to register value; false := rhs not equal to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator == (const value_type rhs) noexcept {
+          return this->read() == rhs;
+        }
+        /**
          * @brief Inequality operator.
          * @param rhs [in] Convertable register types value to be compared.
          * @return true := rhs is not equal to register value; false := rhs is equal to register value.
          * @note Only available if register has read-only or read/write policy.
          */
         bool operator != (const value_type rhs) const noexcept {
+          return this->read() != rhs;
+        }
+        /**
+         * @brief Inequality operator with side effect.
+         * @param rhs [in] Convertable register types value to be compared.
+         * @return true := rhs is not equal to register value; false := rhs is equal to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator != (const value_type rhs) noexcept {
           return this->read() != rhs;
         }
         /**
@@ -255,12 +321,30 @@ namespace embtl {
           return this->read() > rhs;
         }
         /**
+         * @brief Greater than operator with side effect.
+         * @param rhs [in] Convertable register types value to be compared.
+         * @return true := rhs is greater than to register value; false := rhs is not greater than to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator > (const value_type rhs) noexcept {
+          return this->read() > rhs;
+        }
+        /**
          * @brief Greater than or equal to operator.
          * @param rhs [in] Convertable register types value to be compared.
          * @return true := rhs is greater than or equal to register value; false := rhs is not greater than or equal to register value.
          * @note Only available if register has read-only or read/write policy.
          */
         bool operator >= (const value_type rhs) const noexcept {
+          return this->read() >= rhs;
+        }
+        /**
+         * @brief Greater than or equal to operator with side effect.
+         * @param rhs [in] Convertable register types value to be compared.
+         * @return true := rhs is greater than or equal to register value; false := rhs is not greater than or equal to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator >= (const value_type rhs) noexcept {
           return this->read() >= rhs;
         }
         /**
@@ -273,6 +357,15 @@ namespace embtl {
           return this->read() < rhs;
         }
         /**
+         * @brief Less than operator with side effect.
+         * @param rhs [in] Convertable register types value to be compared.
+         * @return true := rhs is less than to register value; false := rhs is not less than to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator < (const value_type rhs) noexcept {
+          return this->read() < rhs;
+        }
+        /**
          * @brief Less than or equal to operator.
          * @param rhs [in] Convertable register types value to be compared.
          * @return true := rhs is less than or equal to register value; false := rhs is not less than or equal to register value.
@@ -281,9 +374,17 @@ namespace embtl {
         bool operator <= (const value_type rhs) const noexcept {
           return this->read() <= rhs;
         }
+        /**
+         * @brief Less than or equal to operator with side effect.
+         * @param rhs [in] Convertable register types value to be compared.
+         * @return true := rhs is less than or equal to register value; false := rhs is not less than or equal to register value.
+         * @note Only available if register has read-only or read/write policy.
+         */
+        bool operator <= (const value_type rhs) noexcept {
+          return this->read() <= rhs;
+        }
       private:
         volatile value_type reg;
-
     };
 
 }

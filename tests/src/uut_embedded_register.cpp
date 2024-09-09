@@ -10,23 +10,77 @@
  */
 #include <uut_catch2.hpp>
 #include <embedded_register.hpp>
+#include <iostream>
 
 using register_type = embtl::arch_type;
 constexpr auto DEFAULT_MASK { std::numeric_limits<register_type>::max() };
 constexpr auto DEFAULT_RESET { std::numeric_limits<register_type>::min() };
+
+static constexpr auto SIDE_EFFECT_WRITE_MASK = embtl::mask_u32b<{0, 4 }>;
+
+static constexpr auto SIDE_EFFECT_RESET_VALUE = 0x0BAD'F00D;
+
+struct side_effect_ro {
+  public:
+    static void read(volatile embtl::arch_type& reg){
+      std::cout << "[ro] side effect (read) := " << reg << std::endl;
+    }
+};
+
+struct side_effect_wo final {
+  public:
+    static void write(volatile embtl::arch_type& reg, const embtl::arch_type& value){
+      std::cout << "[wo] side effect (write:lvalue) := " << value << std::endl;
+      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+    }
+    static void write(volatile embtl::arch_type& reg, embtl::arch_type&& value){
+      std::cout << "[wo] side effect (write:rvalue) := " << value << std::endl;
+      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+    }
+};
+
+struct side_effect_rw {
+  public:
+    static void read(volatile embtl::arch_type& reg){
+      std::cout << "[rw] side effect (read) := " << reg << std::endl;
+    }
+
+    static void write(volatile embtl::arch_type& reg, const embtl::arch_type& value){
+      std::cout << "[rw] side effect (write:lvalue) reg := " << reg << " = " << value << std::endl;
+      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+    }
+
+    static void write(volatile embtl::arch_type& reg, embtl::arch_type&& value){
+      std::cout << "[rw] side effect (write:rvalue) reg := " << reg << " = " << value <<std::endl;
+      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+    }
+
+    static void set_field(volatile embtl::arch_type& reg, embtl::arch_type value, std::size_t pos, std::size_t size, bool masked){
+
+    }
+
+    static void get_field(volatile embtl::arch_type& reg, std::size_t pos, std::size_t size){
+
+    }
+};
 
 TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
                        "[embtl][register][template]",
                        ((typename Policy, typename BaseType, register_type Mask, register_type Reset, typename SideEffect), Policy, BaseType, Mask, Reset, SideEffect),
                        (embtl::policy::basic_reg_read_only<register_type>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
                        (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
-                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void)
+                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
+                       (embtl::policy::basic_reg_read_only<register_type>, register_type, DEFAULT_MASK, DEFAULT_RESET, side_effect_ro),
+                       (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE, side_effect_wo),
+                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE, side_effect_rw)
 ){
-  using reg_t = embtl::basic_hardware_register<Policy, BaseType, Mask, Reset>;
+  using reg_t = embtl::basic_hardware_register<Policy, BaseType, Mask, Reset,SideEffect>;
 
   SECTION("Compile Time Tests"){
     if constexpr (std::is_same_v<SideEffect, void>){
       STATIC_REQUIRE_FALSE(reg_t::has_side_effect());
+    } else {
+        STATIC_REQUIRE(reg_t::has_side_effect());
     }
     // Read-only
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_read_only<BaseType>>){
@@ -78,16 +132,24 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
     }
     SECTION("Write-only methods"){
       if constexpr (embtl::mmio_register_policy_write_only<Policy>){
-        auto wr_value = GENERATE(take(10, random(std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max())));
+        auto wr_value = GENERATE(take(100, random(std::numeric_limits<BaseType>::min(), std::numeric_limits<BaseType>::max())));
         reg_t uut_reg { wr_value };
 
         SECTION("reset method"){
           uut_reg.reset();
-          REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask));
+          if constexpr (reg_t::has_side_effect()){
+            REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask & ~SIDE_EFFECT_WRITE_MASK));
+          } else {
+            REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask));
+          }
         }
         SECTION("write method"){
           uut_reg.write(wr_value);
-          REQUIRE(reg_t::get_register(uut_reg) == (wr_value & Mask));
+          if constexpr (reg_t::has_side_effect()){
+            REQUIRE(reg_t::get_register(uut_reg) == (wr_value & Mask & ~SIDE_EFFECT_WRITE_MASK));
+          } else {
+            REQUIRE(reg_t::get_register(uut_reg) == (wr_value & Mask));
+          }
         }
       }
     }
@@ -201,7 +263,12 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
 
           reg_t uut_reg { init_value };
           uut_reg = op_value;
-          REQUIRE(reg_t::get_register(uut_reg) == (op_value & Mask));
+
+          if constexpr (reg_t::has_side_effect()){
+            REQUIRE(reg_t::get_register(uut_reg) == (op_value & Mask & ~SIDE_EFFECT_WRITE_MASK));
+          } else {
+            REQUIRE(reg_t::get_register(uut_reg) == (op_value & Mask));
+          }
         }
       }
     }
@@ -214,21 +281,40 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
 
         SECTION("AND Assignment Operator"){
           auto check = reg_t::get_register(uut_reg);
-          check &= op_value & Mask;
+
+          if constexpr (reg_t::has_side_effect()){
+            check &= op_value & Mask & ~SIDE_EFFECT_WRITE_MASK;
+          } else {
+            check &= op_value & Mask ;
+          }
+
           uut_reg &= op_value;
 
           REQUIRE(reg_t::get_register(uut_reg) == check);
         }
         SECTION("OR Assignment Operator"){
           auto check = reg_t::get_register(uut_reg);
-          check |= op_value & Mask;
+
+          if constexpr (reg_t::has_side_effect()){
+            check |= op_value & Mask;
+            check &= ~SIDE_EFFECT_WRITE_MASK;
+          } else {
+            check |= op_value & Mask ;
+          }
           uut_reg |= op_value;
 
           REQUIRE(reg_t::get_register(uut_reg) == check);
         }
         SECTION("XOR Assignment Operator"){
           auto check = reg_t::get_register(uut_reg);
-          check ^= op_value & Mask;
+
+          if constexpr (reg_t::has_side_effect()){
+            check ^= op_value & Mask;
+            check &= ~SIDE_EFFECT_WRITE_MASK;
+          } else {
+            check ^= op_value & Mask;
+          }
+
           uut_reg ^= op_value;
 
           REQUIRE(reg_t::get_register(uut_reg) == check);

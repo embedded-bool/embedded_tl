@@ -112,8 +112,8 @@ namespace embtl::policy {
     struct basic_reg_read_write : public basic_reg_read_only<Base, SideEffect>, basic_reg_write_only<Base, Mask, SideEffect> {
       public:
         using value_type = Base;
-        using reg_ro = basic_reg_read_only<Base>;
-        using reg_wo = basic_reg_write_only<Base, Mask>;
+        using reg_ro = basic_reg_read_only<Base, SideEffect>;
+        using reg_wo = basic_reg_write_only<Base, Mask, SideEffect>;
         using side_effect = SideEffect;
         /**
          * @brief Write-only policy : Set bit field method.
@@ -163,8 +163,11 @@ namespace embtl::policy {
     static_assert(mmio_register_policy_read_only<basic_reg_read_write<arch_type>>);
     static_assert(mmio_register_policy_read_write<basic_reg_read_write<arch_type>>);
 
-    template<embedded_base_type>
-    struct basic_reg_reserved { };
+    template<embedded_base_type Base>
+    struct basic_reg_reserved {
+        using value_type = Base;
+        using side_effect = void;
+    };
 
     template<typename Policy>
     using policy_side_effect_t = typename Policy::side_effect;

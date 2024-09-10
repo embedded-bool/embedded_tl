@@ -32,18 +32,27 @@ namespace embtl::policy {
     /**
      * @brief Register policy : read-only template
      * @tparam Base Register type.
+     * @tparam SideEffects Used for unit testing, simulates the effects of read access to the register.
      */
-    template<embedded_base_type Base>
+    template<embedded_base_type Base, typename SideEffects = void>
     struct basic_reg_read_only : public basic_reg_root<Base> {
       public:
         using value_type = Base;
+        using side_effect = SideEffects;
         /**
          * @brief Read-only policy : Read method.
          * @param reg [in] Constant reference to register variable.
          * @return Value of reg parameter.
          */
-        static value_type read(const volatile value_type& reg) noexcept {
-          return reg;
+        static value_type read(volatile value_type& reg) noexcept {
+          // Read register before side effect.
+          auto reg_value = reg;
+          // Implement side effect if template parameter SideEffect meets requirements
+          if constexpr (mmio_side_effect_read_only<side_effect>){
+            side_effect::read(reg);
+          }
+          // Return read value.
+          return reg_value;
         }
         /**
          * @brief Read-only policy : get bit field
@@ -53,28 +62,31 @@ namespace embtl::policy {
          * @param raw_value [in] true := Returns only masked value of the field. false (default) := Return value of the field.
          * @return Field data.
          */
-        static value_type get_field(const volatile value_type& reg, std::size_t pos, std::size_t size, bool shifted = true) noexcept {
+        static value_type get_field(volatile value_type& reg, std::size_t pos, std::size_t size, bool shifted = true) noexcept {
           // 1. Read register
-          auto reg_v = read(reg);
+          auto reg_value = read(reg);
           // 2. Mask field
-          reg_v &= basic_reg_root<Base>::make_mask(pos, size);
+          reg_value &= basic_reg_root<Base>::make_mask(pos, size);
           // 3. Shift field to bit zero if requested.
           if (shifted) {
-            reg_v >>= pos;
+            reg_value >>= pos;
           }
           // 4. Return field value.
-          return reg_v;
+          return reg_value;
         }
     };
     static_assert(mmio_register_policy_read_only<basic_reg_read_only<arch_type>>);
     /**
      * @brief Register policy : write-only template.
-     * @tparam Base Register type.
+     * @tparam Base Register value type.
+     * @tparam Mask Write bit mask for register.
+     * @tparam SideEffect Used for unit testing, simulates the effects of write access to the register.
      */
-    template<embedded_base_type Base, Base Mask = std::numeric_limits<arch_type>::max()>
+    template<embedded_base_type Base, Base Mask = std::numeric_limits<arch_type>::max(), typename SideEffect = void>
     struct basic_reg_write_only : public basic_reg_root<Base> {
       public:
         using value_type = Base;
+        using side_effect = SideEffect;
         /**
          * @brief Write-only policy : Write method.
          * @tparam Mask Write Mask value.
@@ -83,19 +95,26 @@ namespace embtl::policy {
 //         */
         static void write(volatile value_type& reg, const value_type value) noexcept {
           reg = value & Mask;
+
+          if constexpr (mmio_side_effect_write_only<side_effect>){
+            side_effect::write(reg, value);
+          }
         }
     };
     static_assert(mmio_register_policy_write_only<basic_reg_write_only<arch_type>>);
     /**
      * @brief Register policy : read/write template
-     * @tparam Base Register type.
+     * @tparam Base Register value type.
+     * @tparam Mask Write bit mask for register.
+     * @tparam SideEffect Used for unit testing, simulates the effects of read/write access to the register.
      */
-    template<embedded_base_type Base, Base Mask = std::numeric_limits<Base>::max()>
-    struct basic_reg_read_write : public basic_reg_read_only<Base>, basic_reg_write_only<Base, Mask> {
+    template<embedded_base_type Base, Base Mask = std::numeric_limits<Base>::max(), typename SideEffect = void>
+    struct basic_reg_read_write : public basic_reg_read_only<Base, SideEffect>, basic_reg_write_only<Base, Mask, SideEffect> {
       public:
         using value_type = Base;
         using reg_ro = basic_reg_read_only<Base>;
         using reg_wo = basic_reg_write_only<Base, Mask>;
+        using side_effect = SideEffect;
         /**
          * @brief Write-only policy : Set bit field method.
          * @tparam Mask Write mask for register.
@@ -146,6 +165,9 @@ namespace embtl::policy {
 
     template<embedded_base_type>
     struct basic_reg_reserved { };
+
+    template<typename Policy>
+    using policy_side_effect_t = typename Policy::side_effect;
 }
 
 #endif //EMBEDDED_TL_EMBEDDED_POLICY_HPP

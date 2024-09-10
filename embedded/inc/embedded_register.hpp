@@ -23,34 +23,63 @@ namespace embtl {
      * @tparam Base Register variable type.
      * @tparam Mask Register Write mask.
      * @tparam Reset Register reset value.
-     * @tparam SideEffect Used for simulation the effects of read or write access. ( default = void; for no side effects or not simulating.)
      */
     template<typename Policy, embedded_base_type Base = arch_type,
             Base Mask = std::numeric_limits<Base>::max(),
-            Base Reset = std::numeric_limits<Base>::min(),
-            typename SideEffect = void>
+            Base Reset = std::numeric_limits<Base>::min()>
     struct basic_hardware_register final {
       public:
         using value_type = Base;
+        using access_policy = Policy;
+        using access_side_effect = policy::policy_side_effect_t<access_policy>;
 
         // Compile time checks
-        static consteval bool has_read_access() noexcept { return mmio_register_policy_read_only<Policy>; }
-        static consteval bool has_write_access() noexcept { return mmio_register_policy_write_only<Policy>; }
-        static consteval bool has_read_write_access() noexcept { return mmio_register_policy_read_write<Policy>; }
-
+        /**
+         * @brief Get the write mask for the register.
+         * @return Write mask for the register.
+         */
+        static consteval value_type WriteMask() { return Mask; }
+        /**
+         * @brief Gets the register value for the register.
+         * @return Reset value for the register.
+         */
+        static consteval value_type ResetValue() { return Reset; }
+        /**
+         * @brief Check if access policy allows reads.
+         * @return true := Reads allowed; false := Reads not allowed.
+         */
+        static consteval bool has_read_access() noexcept { return mmio_register_policy_read_only<access_policy>; }
+        /**
+         * @brief Check if access policy allows writes.
+         * @return true := Writes allowed; false : Writes not allowed.
+         */
+        static consteval bool has_write_access() noexcept { return mmio_register_policy_write_only<access_policy>; }
+        /**
+         * @brief Checks if access policy allows reads and writes.
+         * @return true := Reads and Writes allowed; false := Read and Write access not allowed.
+         */
+        static consteval bool has_read_write_access() noexcept { return mmio_register_policy_read_write<access_policy>; }
+        /**
+         * @brief Checks if the register is reserved.
+         * @return true := register is reversed; false := the register is not reserved.
+         */
         static consteval bool is_reserved() noexcept {
-          return !(mmio_register_policy_read_write<Policy> ||
-                  mmio_register_policy_read_only<Policy> ||
-                  mmio_register_policy_write_only<Policy>);
+          return !(mmio_register_policy_read_write<access_policy> ||
+                  mmio_register_policy_read_only<access_policy> ||
+                  mmio_register_policy_write_only<access_policy>);
         }
+        /**
+         * @brief Checks if register has side effects
+         * @return true := side effect is implemented; false := no side effect is implemented.
+         */
         static consteval bool has_side_effect() noexcept {
-          return mmio_side_effect_write_only<SideEffect> ||
-                 mmio_side_effect_read_only<SideEffect>; }
+          return mmio_side_effect_write_only<access_side_effect> ||
+                 mmio_side_effect_read_only<access_side_effect>; }
 
         basic_hardware_register() noexcept = default;
 
         explicit basic_hardware_register(const value_type value) noexcept
-        requires mmio_register_policy_write_only<Policy> : reg(value){ }
+        requires mmio_register_policy_write_only<access_policy> : reg(value){ }
 
         basic_hardware_register(const basic_hardware_register&) noexcept = default;
         basic_hardware_register& operator=(const basic_hardware_register&) noexcept = default;
@@ -66,11 +95,8 @@ namespace embtl {
          * @note Only available if register has write-only or read/write policy.
          */
         void reset() noexcept
-        requires mmio_register_policy_write_only<Policy>{
-          Policy::write(reg, Reset);
-          if constexpr (mmio_side_effect_write_only<SideEffect>) {
-            SideEffect::write(reg, Reset);
-          }
+        requires mmio_register_policy_write_only<access_policy>{
+          access_policy::write(reg, Reset);
         }
         /**
          * @brief Read register method (const).
@@ -78,8 +104,8 @@ namespace embtl {
          * @note Only available if register has read-only or read/write policy.
          */
         [[nodiscard]] value_type read() const noexcept
-        requires mmio_register_policy_read_only<Policy> {
-          return Policy::read(reg);;
+        requires mmio_register_policy_read_only<access_policy> {
+          return access_policy::read(reg);
         }
         /**
          * @brief Read register method with side effect.
@@ -87,10 +113,8 @@ namespace embtl {
          * @note Only available if register has read-only or read/write policy.
          */
         [[nodiscard]] value_type read() noexcept
-        requires (mmio_register_policy_read_only<Policy> && mmio_side_effect_read_only<SideEffect>) {
-          auto val = Policy::read(reg);
-          SideEffect::read(reg);
-          return val;
+        requires mmio_register_policy_read_only<access_policy> {
+          return access_policy::read(reg);
         }
         /**
          * @brief Get bit field method (const).
@@ -101,14 +125,12 @@ namespace embtl {
          * @note Only available if register has read-only or read/write policy.
          */
         [[nodiscard]] value_type get_field(std::size_t pos, std::size_t size = 1, bool shifted = true) const noexcept
-        requires mmio_register_policy_read_only<Policy> {
-          auto val =  Policy::get_field(reg, pos, size, shifted);
-
-          if constexpr (mmio_side_effect_read_only<SideEffect>){
-            SideEffect::read(reg);
-          }
-
-          return val;
+        requires mmio_register_policy_read_only<access_policy> {
+          return access_policy::get_field(reg, pos, size, shifted);
+        }
+        [[nodiscard]] value_type get_field(std::size_t pos, std::size_t size = 1, bool shifted = true) noexcept
+        requires mmio_register_policy_read_only<access_policy> {
+          return access_policy::get_field(reg, pos, size, shifted);
         }
         /**
          * @brief Get bit field method with side effect.
@@ -119,10 +141,8 @@ namespace embtl {
          * @note Only available if register has read-only or read/write policy.
          */
         [[nodiscard]] value_type get_field(std::size_t pos, std::size_t size = 1, bool shifted = true) noexcept
-        requires (mmio_register_policy_read_only<Policy> && mmio_side_effect_read_only<SideEffect>) {
-          auto val =  Policy::get_field(reg, pos, size, shifted);
-          SideEffect::read(reg);
-          return val;
+        requires (mmio_register_policy_read_only<access_policy> && mmio_side_effect_read_only<access_side_effect>) {
+          return access_policy::get_field(reg, pos, size, shifted);
         }
         /**
          * @brief Write register method.
@@ -130,12 +150,8 @@ namespace embtl {
          * @note Only available if register has write-only or read/write policy.
          */
         void write(const value_type value) noexcept
-        requires mmio_register_policy_write_only<Policy> {
-          Policy::write(reg, value);
-
-          if constexpr (mmio_side_effect_write_only<SideEffect>){
-            SideEffect::write(reg, value);
-          }
+        requires mmio_register_policy_write_only<access_policy> {
+          access_policy::write(reg, value);
         }
         /**
          * @brief Set bit field method.
@@ -145,12 +161,19 @@ namespace embtl {
          * @note Only available if register has write-only or read/write policy.
          */
         void set_field(std::size_t pos, std::size_t size = 1, const value_type value = 1, bool shifted = false) noexcept
-        requires mmio_register_policy_read_write<Policy> {
-          Policy::set_field(reg, pos, size, value, shifted);
+        requires mmio_register_policy_read_write<access_policy> {
+          auto reg_value = this->read();    // Read register value.
 
-          if constexpr (mmio_side_effect_read_write<SideEffect>){
-            SideEffect::set_field(reg, pos, size, value, shifted);
+          reg_value &= ~make_mask<value_type>(pos, size);                                     // clear field.
+          auto masked_value = value & make_mask<value_type>(shifted ? pos : 0, size);     // mask value to field size
+
+          if(!shifted){
+            masked_value <<= pos;                                                             // Shift if value not already shifted
           }
+
+          reg_value |= masked_value;                                                          // insert field into reg value
+
+          this->write(reg_value);                                                       // Write set field back to register.
         }
         /**
          * @brief Clear bit field method.
@@ -159,12 +182,10 @@ namespace embtl {
          * @note Only available if register has write-only or read/write policy.
          */
         void clear_field(std::size_t pos, std::size_t size = 1) noexcept
-        requires mmio_register_policy_read_write<Policy> {
-          Policy::clear_field(reg, pos, size);
-
-          if constexpr (mmio_side_effect_read_write<SideEffect>){
-            SideEffect::clear_field(reg, pos, size);
-          }
+        requires mmio_register_policy_read_write<access_policy> {
+          auto value = this->read();
+          value &= ~make_mask<value_type>(pos, size);    // clear field.
+          this->write(value);
         }
 
         // Assignment operators
@@ -386,6 +407,13 @@ namespace embtl {
       private:
         volatile value_type reg;
     };
+
+    template<typename RegType>
+    using register_access_policy = typename RegType::access_policy;
+    template<typename RegType>
+    using register_side_effect = typename RegType::access_side_effect;
+    template<typename RegType>
+    using register_base_type = typename RegType::value_type;
 
 }
 

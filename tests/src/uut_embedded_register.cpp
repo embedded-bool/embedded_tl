@@ -16,7 +16,7 @@ using register_type = embtl::arch_type;
 constexpr auto DEFAULT_MASK { std::numeric_limits<register_type>::max() };
 constexpr auto DEFAULT_RESET { std::numeric_limits<register_type>::min() };
 
-static constexpr auto SIDE_EFFECT_WRITE_MASK = embtl::mask_u32b<{0, 4 }>;
+static constexpr auto SIDE_EFFECT_WRITE_MASK = embtl::mask_u32b<{0, 0 }>;
 
 static constexpr auto SIDE_EFFECT_RESET_VALUE = 0x0BAD'F00D;
 
@@ -59,6 +59,10 @@ struct side_effect_rw {
 
     }
 
+    static void clear_field(volatile embtl::arch_type& reg, std::size_t, std::size_t) {
+
+    }
+
     static void get_field(volatile embtl::arch_type& reg, std::size_t pos, std::size_t size){
 
     }
@@ -66,40 +70,57 @@ struct side_effect_rw {
 
 TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
                        "[embtl][register][template]",
-                       ((typename Policy, typename BaseType, register_type Mask, register_type Reset, typename SideEffect), Policy, BaseType, Mask, Reset, SideEffect),
-                       (embtl::policy::basic_reg_read_only<register_type>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
-                       (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
-                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET, void),
-                       (embtl::policy::basic_reg_read_only<register_type>, register_type, DEFAULT_MASK, DEFAULT_RESET, side_effect_ro),
-                       (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE, side_effect_wo),
-                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE, side_effect_rw)
+                       ((typename Policy, typename BaseType, register_type Mask, register_type Reset), Policy, BaseType, Mask, Reset),
+                       (embtl::policy::basic_reg_read_only<register_type>, register_type, DEFAULT_MASK, DEFAULT_RESET),
+                       (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET),
+                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK>, register_type, DEFAULT_MASK, DEFAULT_RESET),
+                       (embtl::policy::basic_reg_read_only<register_type, side_effect_ro>, register_type, DEFAULT_MASK, DEFAULT_RESET),
+                       (embtl::policy::basic_reg_write_only<register_type, DEFAULT_MASK, side_effect_wo>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE),
+                       (embtl::policy::basic_reg_read_write<register_type, DEFAULT_MASK, side_effect_rw>, register_type, DEFAULT_MASK, SIDE_EFFECT_RESET_VALUE)
 ){
-  using reg_t = embtl::basic_hardware_register<Policy, BaseType, Mask, Reset,SideEffect>;
+  using reg_t = embtl::basic_hardware_register<Policy, BaseType, Mask, Reset>;
 
   SECTION("Compile Time Tests"){
-    if constexpr (std::is_same_v<SideEffect, void>){
-      STATIC_REQUIRE_FALSE(reg_t::has_side_effect());
-    } else {
-        STATIC_REQUIRE(reg_t::has_side_effect());
+    // Type checks.
+    STATIC_REQUIRE(std::is_same_v<Policy, embtl::register_access_policy<reg_t>>);
+    STATIC_REQUIRE(std::is_same_v<BaseType, register_type>);
+
+    // Side effect check
+
+    // Read-Only Side effect check
+    if constexpr (std::is_same_v<embtl::policy::policy_side_effect_t<Policy>, side_effect_ro>){
+      STATIC_REQUIRE(embtl::mmio_side_effect_read_only<embtl::register_side_effect<reg_t>>);
     }
-    // Read-only
+    // Write-Only Side effect check
+    if constexpr (std::is_same_v<embtl::policy::policy_side_effect_t<Policy>, side_effect_wo>){
+      STATIC_REQUIRE(embtl::mmio_side_effect_write_only<embtl::register_side_effect<reg_t>>);
+    }
+    // Read-Write Side effect check
+    if constexpr (std::is_same_v<embtl::policy::policy_side_effect_t<Policy>, side_effect_rw>){
+      STATIC_REQUIRE(embtl::mmio_side_effect_read_only<embtl::register_side_effect<reg_t>>);
+      STATIC_REQUIRE(embtl::mmio_side_effect_write_only<embtl::register_side_effect<reg_t>>);
+      STATIC_REQUIRE(embtl::mmio_side_effect_read_write<embtl::register_side_effect<reg_t>>);
+    }
+
+    // Read-only policy check
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_read_only<BaseType>>){
       STATIC_REQUIRE(reg_t::has_read_access());
       STATIC_REQUIRE_FALSE(reg_t::has_write_access());
       STATIC_REQUIRE_FALSE(reg_t::has_read_write_access());
     }
-    // Write-only check
+    // Write-only policy check
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_write_only<BaseType, Mask>>){
       STATIC_REQUIRE_FALSE(reg_t::has_read_access());
       STATIC_REQUIRE(reg_t::has_write_access());
       STATIC_REQUIRE_FALSE(reg_t::has_read_write_access());
     }
-    // Read/Write check
+    // Read/Write policy check
     if constexpr (std::is_same_v<Policy, embtl::policy::basic_reg_read_write<BaseType, Mask>>){
       STATIC_REQUIRE(reg_t::has_read_access());
       STATIC_REQUIRE(reg_t::has_write_access());
       STATIC_REQUIRE(reg_t::has_read_write_access());
     }
+
   }
   SECTION("Methods"){
     SECTION("Read-only methods"){
@@ -181,6 +202,8 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
           auto value_check = reg_t::get_register(uut_reg) & ~embtl::make_mask<BaseType>(position, sz);
 
           uut_reg.clear_field(position, sz);
+
+          CAPTURE(position, sz, value_check, reg_t::get_register(uut_reg));
           REQUIRE(reg_t::get_register(uut_reg) == value_check);
         }
       }

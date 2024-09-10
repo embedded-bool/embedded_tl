@@ -22,7 +22,7 @@ namespace embtl {
 
     template<typename T>
     concept mmio_register_policy_read_only = requires (
-            const volatile arch_type& reg, std::size_t pos, std::size_t sz, bool shifted) {
+            volatile arch_type& reg, std::size_t pos, std::size_t sz, bool shifted) {
       { T::read(reg) } -> std::same_as<arch_type>;
       { T::get_field(reg, pos, sz, shifted) } -> std::same_as<arch_type>;
     };
@@ -51,11 +51,7 @@ namespace embtl {
     };
 
     template<typename T>
-    concept mmio_side_effect_read_write = mmio_side_effect_read_only<T> && mmio_side_effect_write_only<T> &&
-            requires (volatile arch_type& reg, arch_type value, size_t pos, std::size_t size, bool masked) {
-              { T::set_field(reg, pos, size, value, masked) } -> std::same_as<void>;
-              { T::clear_field(reg, pos, size) } -> std::same_as<void>;
-            };
+    concept mmio_side_effect_read_write = mmio_side_effect_read_only<T> && mmio_side_effect_write_only<T>;
 
     /**
      * @brief Memory Mapped IO (MMIO) Single Device concept.

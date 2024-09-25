@@ -89,6 +89,9 @@ namespace embtl {
 #ifdef UNIT_TEST
         static auto get_register(const basic_hardware_register& hw_reg) noexcept { return hw_reg.reg; }
         static auto set_register(basic_hardware_register& hw_reg, const value_type val) noexcept { hw_reg.reg = val; }
+
+        void set_register(const value_type& val) noexcept { reg = val; }
+        auto get_register() noexcept { return reg; }
 #endif
         /**
          * @brief Reset register method.

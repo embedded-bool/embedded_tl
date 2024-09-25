@@ -17,6 +17,9 @@
 
 namespace embtl::policy {
 
+    namespace types {
+
+    }
     /**
      * @brief Device Register policy : root (common)
      * @tparam Base Register type.
@@ -32,9 +35,14 @@ namespace embtl::policy {
     /**
      * @brief Register policy : read-only template
      * @tparam Base Register type.
-     * @tparam SideEffects Used for unit testing, simulates the effects of read access to the register.
+     * @tparam SideEffects Used for unit testing, simulates the effects of read access to the register. Default = void.
+     * @tparam EffectBefore Bool type; <br>
+     *                      true := Side effect executes before register read. <br>
+     *                      false := Side effect executes after register read.
+     * @note Side effects are only executed when the type provided meets the requirement of the mmio_side_effect_read_only
+     *       concept.
      */
-    template<embedded_base_type Base, typename SideEffects = void>
+    template<embedded_base_type Base, typename SideEffects = void, bool EffectBefore = false>
     struct basic_reg_read_only : public basic_reg_root<Base> {
       public:
         using value_type = Base;
@@ -43,8 +51,10 @@ namespace embtl::policy {
          * @brief Read-only policy : Read method.
          * @param reg [in] Constant reference to register variable.
          * @return Value of reg parameter.
+         * @note Available if EffectBefore template parameter is false.
          */
-        static value_type read(volatile value_type& reg) noexcept {
+        static value_type read(volatile value_type& reg) noexcept
+        requires (!EffectBefore){
           // Read register before side effect.
           auto reg_value = reg;
           // Implement side effect if template parameter SideEffect meets requirements
@@ -53,6 +63,20 @@ namespace embtl::policy {
           }
           // Return read value.
           return reg_value;
+        }
+        /**
+         * @brief Read-only policy : Read method.
+         * @param reg [in] Constant reference to register variable.
+         * @return Value of reg parameter.
+         * @note Available if EffectBefore template parameter is true.
+         */
+        static value_type read(volatile value_type& reg) noexcept
+        requires (EffectBefore){
+          // Implement side effect if template parameter SideEffect meets requirements
+          if constexpr (mmio_side_effect_read_only<side_effect>){
+            side_effect::read(reg);
+          }
+          return reg; // Return Register value after side effect.
         }
         /**
          * @brief Read-only policy : get bit field
@@ -81,6 +105,9 @@ namespace embtl::policy {
      * @tparam Base Register value type.
      * @tparam Mask Write bit mask for register.
      * @tparam SideEffect Used for unit testing, simulates the effects of write access to the register.
+     *
+     * @note Side effects are only executed when the type provided meets the requirements of the mmio_side_effect_write_only
+     *       concept.
      */
     template<embedded_base_type Base, Base Mask = std::numeric_limits<arch_type>::max(), typename SideEffect = void>
     struct basic_reg_write_only : public basic_reg_root<Base> {
@@ -94,11 +121,12 @@ namespace embtl::policy {
          * @param val [in] Value to be written to register.
 //         */
         static void write(volatile value_type& reg, const value_type value) noexcept {
-          reg = value & Mask;
-
           if constexpr (mmio_side_effect_write_only<side_effect>){
-            side_effect::write(reg, value);
+            side_effect::write(reg, value & Mask);
+          } else {
+            reg = value & Mask;
           }
+
         }
     };
     static_assert(mmio_register_policy_write_only<basic_reg_write_only<arch_type>>);
@@ -107,11 +135,15 @@ namespace embtl::policy {
      * @tparam Base Register value type.
      * @tparam Mask Write bit mask for register.
      * @tparam SideEffect Used for unit testing, simulates the effects of read/write access to the register.
+     *
+     * @note Side effects are only executed when the type provided meets the requirements of the mmio_side_effect_read_write
+     *       concept.
      */
-    template<embedded_base_type Base, Base Mask = std::numeric_limits<Base>::max(), typename SideEffect = void>
-    struct basic_reg_read_write : public basic_reg_read_only<Base, SideEffect>, basic_reg_write_only<Base, Mask, SideEffect> {
+    template<embedded_base_type Base, Base Mask = std::numeric_limits<Base>::max(), typename SideEffect = void, bool RdEffectBefore = false>
+    struct basic_reg_read_write : public basic_reg_read_only<Base, SideEffect, RdEffectBefore>, basic_reg_write_only<Base, Mask, SideEffect> {
       public:
         using value_type = Base;
+        using reg_base = basic_reg_root<Base>;
         using reg_ro = basic_reg_read_only<Base, SideEffect>;
         using reg_wo = basic_reg_write_only<Base, Mask, SideEffect>;
         using side_effect = SideEffect;
@@ -130,9 +162,9 @@ namespace embtl::policy {
           // Read register
           auto reg_v =reg_ro::read(reg);
           // Clear field
-          reg_v &= ~basic_reg_root<Base>::make_mask(pos, size);
+          reg_v &= ~reg_base::make_mask(pos, size);
           // Set field value
-          auto field_mask = basic_reg_root<Base>::make_mask(shifted ? pos : 0, size);
+          auto field_mask = reg_base::make_mask(shifted ? pos : 0, size);
 
           if(shifted){
             reg_v |= value & field_mask;
@@ -152,9 +184,9 @@ namespace embtl::policy {
         static void clear_field(volatile value_type& reg,
                                 const std::size_t pos, const std::size_t size) noexcept {
           // Read Register
-          auto reg_v = basic_reg_read_only<Base>::read(reg);
+          auto reg_v = reg_ro::read(reg);
           // Clear field
-          reg_v &= ~basic_reg_root<Base>::make_mask(pos, size);
+          reg_v &= ~reg_base::make_mask(pos, size);
           // Write Register
           reg_wo::write(reg, reg_v);
         }

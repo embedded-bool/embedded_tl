@@ -31,11 +31,11 @@ struct side_effect_wo final {
   public:
     static void write(volatile embtl::arch_type& reg, const embtl::arch_type& value){
       std::cout << "[wo] side effect (write:lvalue) := " << value << std::endl;
-      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+      reg = value;
     }
     static void write(volatile embtl::arch_type& reg, embtl::arch_type&& value){
       std::cout << "[wo] side effect (write:rvalue) := " << value << std::endl;
-      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+      reg = value;
     }
 };
 
@@ -47,12 +47,12 @@ struct side_effect_rw {
 
     static void write(volatile embtl::arch_type& reg, const embtl::arch_type& value){
       std::cout << "[rw] side effect (write:lvalue) reg := " << reg << " = " << value << std::endl;
-      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+      reg = value;
     }
 
     static void write(volatile embtl::arch_type& reg, embtl::arch_type&& value){
       std::cout << "[rw] side effect (write:rvalue) reg := " << reg << " = " << value <<std::endl;
-      reg = reg & ~SIDE_EFFECT_WRITE_MASK;
+      reg = value;
     }
 
     static void set_field(volatile embtl::arch_type& reg, embtl::arch_type value, std::size_t pos, std::size_t size, bool masked){
@@ -159,7 +159,7 @@ TEMPLATE_TEST_CASE_SIG("Embedded Register Template test",
         SECTION("reset method"){
           uut_reg.reset();
           if constexpr (reg_t::has_side_effect()){
-            REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask & ~SIDE_EFFECT_WRITE_MASK));
+            REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask));
           } else {
             REQUIRE(reg_t::get_register(uut_reg) == (Reset & Mask));
           }
